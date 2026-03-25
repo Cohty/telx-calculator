@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TELx APY Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090d;--card:#0e1219;--card2:#131820;
+  --border:#1c2535;--border2:#243044;
+  --cyan:#00d4ff;--cyan-dim:rgba(0,212,255,.12);
+  --green:#00e5a0;--amber:#ffb800;--amber-dim:rgba(255,184,0,.1);
+  --text:#dce8f5;--muted:#4a6278;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;padding:32px 16px 64px;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.wrap{max-width:900px;margin:0 auto;position:relative;z-index:1;}
+
+/* Header */
+.header{display:flex;align-items:center;gap:16px;margin-bottom:32px;}
+.logo-wrap{width:52px;height:52px;border-radius:14px;flex-shrink:0;overflow:hidden;box-shadow:0 0 24px rgba(0,212,255,.2);background:linear-gradient(135deg,#00d4ff,#a78bfa);display:flex;align-items:center;justify-content:center;}
+.logo-wrap img{width:52px;height:52px;object-fit:cover;border-radius:14px;}
+.logo-wrap .fb{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;color:#000;display:none;}
+.header-text h1{font-size:22px;font-weight:800;letter-spacing:-.5px;}
+.header-text p{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:3px;}
+
+/* Cards */
+.slbl{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--cyan);font-family:'IBM Plex Mono',monospace;margin-bottom:14px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px;}
+
+/* Form */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+input{background:var(--card2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;width:100%;transition:border-color .15s;}
+input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,.08);}
+input::placeholder{color:var(--muted);}
+input.live{border-color:rgba(0,229,160,.4);color:var(--green);}
+input.loading{animation:pulse 1.2s ease-in-out infinite;border-color:rgba(0,212,255,.3);}
+input[readonly]{color:var(--muted);cursor:default;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hint{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:3px;}
+.hint.ok{color:var(--green);}
+.hint.err{color:#f87171;}
+
+/* Custom pool dropdown */
+.pool-wrap{position:relative;}
+.pool-btn{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 36px 10px 12px;cursor:pointer;transition:border-color .15s;position:relative;width:100%;}
+.pool-btn:hover,.pool-btn.open{border-color:var(--cyan);}
+.pool-btn .pool-name{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);flex:1;text-align:left;}
+.pool-btn .pool-name.placeholder{color:var(--muted);}
+.pool-btn .chevron{position:absolute;right:12px;color:var(--muted);font-size:10px;}
+.tok-stack{display:flex;align-items:center;flex-shrink:0;}
+.tok-stack img{width:22px;height:22px;border-radius:50%;border:2px solid var(--card2);margin-left:-7px;object-fit:cover;background:var(--card);}
+.tok-stack img:first-child{margin-left:0;}
+.pool-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card);border:1px solid var(--border2);border-radius:12px;z-index:200;display:none;box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:hidden;}
+.pool-menu.open{display:block;}
+.pool-item{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);}
+.pool-item:last-child{border-bottom:none;}
+.pool-item:hover{background:var(--card2);}
+.pool-item.active{background:rgba(0,212,255,.07);}
+.pool-item .pi-name{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text);flex:1;}
+.pool-item .pi-chain{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+
+/* Asset tabs */
+.asset-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.asset-tab{padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;transition:all .15s;border:1px solid var(--border2);background:var(--card2);color:var(--muted);font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:7px;}
+.asset-tab img{width:18px;height:18px;border-radius:50%;object-fit:cover;}
+.asset-tab:hover{border-color:var(--cyan);color:var(--cyan);}
+.asset-tab.active{background:rgba(0,212,255,.1);border-color:var(--cyan);color:var(--cyan);}
+.w-badge{font-size:10px;padding:1px 5px;border-radius:4px;background:var(--card);color:var(--muted);}
+.asset-tab.active .w-badge{background:rgba(0,212,255,.1);color:rgba(0,212,255,.7);}
+
+/* Amount row */
+.amount-row{display:flex;gap:12px;align-items:flex-end;}
+.amount-row .field{flex:1;}
+.curr-badge{background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:11px 14px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--cyan);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;min-width:90px;}
+.curr-badge img{width:18px;height:18px;border-radius:50%;}
+
+/* Status / refresh */
+.status-bar{display:none;align-items:center;gap:8px;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:11px;font-family:'IBM Plex Mono',monospace;}
+.status-bar.show{display:flex;}
+.status-bar.loading{background:var(--cyan-dim);border:1px solid rgba(0,212,255,.2);color:var(--cyan);}
+.status-bar.ok{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2);color:var(--green);}
+.status-bar.err{background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);color:#f87171;}
+.spin{display:inline-block;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-btn{width:100%;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--cyan-dim);border:1px solid rgba(0,212,255,.3);border-radius:10px;padding:11px;color:var(--cyan);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.refresh-btn:hover{background:rgba(0,212,255,.2);border-color:var(--cyan);}
+.refresh-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* APY results */
+.apy-row{display:flex;gap:14px;}
+.apy-main{background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(167,139,250,.06));border:1px solid rgba(0,212,255,.22);border-radius:12px;padding:20px 24px;flex:1;text-align:center;}
+.apy-main .lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.apy-main .val{font-size:44px;font-weight:800;color:var(--cyan);letter-spacing:-2px;font-family:'IBM Plex Mono',monospace;margin:6px 0 2px;line-height:1;}
+.apy-main .sub{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.apy-split{display:flex;flex-direction:column;gap:10px;min-width:180px;}
+.apy-piece{background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:14px 16px;flex:1;display:flex;justify-content:space-between;align-items:center;}
+.apy-piece .pl{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.apy-piece .pv{font-size:16px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.apy-piece.fee .pv{color:var(--green);}
+.apy-piece.tel .pv{color:var(--amber);}
+
+/* Earnings */
+.earn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.earn-cell{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px 12px;text-align:center;}
+.earn-period{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-bottom:8px;}
+.earn-val{font-size:18px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:var(--cyan);}
+.earn-tel{font-size:11px;color:var(--amber);font-family:'IBM Plex Mono',monospace;margin-top:4px;}
+.earn-usd{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+
+.rewards-bar{background:var(--amber-dim);border:1px solid rgba(255,184,0,.2);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+.rb-label{font-size:11px;color:var(--amber);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;text-transform:uppercase;flex-shrink:0;}
+.rb-val{font-size:20px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:var(--amber);}
+.rb-usd{font-size:13px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-left:8px;}
+.rb-div{width:1px;height:28px;background:rgba(255,184,0,.2);}
+.rb-share{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted);}
+.rb-share span{color:var(--amber);}
+
+.note{background:rgba(255,184,0,.06);border:1px solid rgba(255,184,0,.15);border-radius:10px;padding:12px 16px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:#b08930;line-height:1.7;margin-bottom:14px;}
+.note strong{color:var(--amber);}
+.disclaimer{margin-top:28px;padding:14px 16px;background:rgba(255,184,0,.04);border:1px solid rgba(255,184,0,.1);border-radius:10px;font-size:11px;color:#6a5a28;font-family:'IBM Plex Mono',monospace;line-height:1.7;}
+
+@media(max-width:680px){.g3{grid-template-columns:1fr 1fr;}.earn-grid{grid-template-columns:1fr 1fr;}.apy-row{flex-direction:column;}.apy-split{flex-direction:row;min-width:unset;}}
+@media(max-width:440px){.g2,.g3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="logo-wrap" style="background:linear-gradient(135deg,#00d4ff,#a78bfa);display:flex;align-items:center;justify-content:center;">
+      <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+        <text x="18" y="25" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-size="15" font-weight="900" fill="#000">TELx</text>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>TELx APY Calculator</h1>
+      <p>telx.network · live data · yield estimator</p>
+    </div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="card">
+    <div class="slbl">1 · Select Pool</div>
+    <div class="g2">
+      <div class="field">
+        <label>Pool</label>
+        <div class="pool-wrap" id="poolWrap">
+          <button class="pool-btn" id="poolBtn" onclick="toggleMenu()" type="button">
+            <div class="tok-stack" id="btnStack"></div>
+            <span class="pool-name placeholder" id="btnLabel">Select a pool…</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="pool-menu" id="poolMenu"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Protocol · Chain</label>
+        <input id="protocolEl" readonly placeholder="—"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="card">
+    <div class="slbl">2 · Live Pool Data</div>
+    <div class="note">
+      <strong>ℹ TEL Rewards — 2026 Generalized Issuance</strong><br>
+      Rewards are paid every 7 days per pool. 5 pools pay <strong>648,148 TEL/week</strong>, USDC/eMXN pays <strong>560,000 TEL/week</strong>. Total across all pools = ~3.2M TEL/week.
+    </div>
+    <div class="g3">
+      <div class="field"><label>TVL (USD)</label><input type="number" id="tvlEl" placeholder="—" oninput="calculate()"/><div class="hint" id="tvlHint"></div></div>
+      <div class="field"><label>24hr Volume (USD)</label><input type="number" id="volEl" placeholder="—" oninput="calculate()"/><div class="hint" id="volHint"></div></div>
+      <div class="field"><label>24hr Fees (USD)</label><input type="number" id="feesEl" placeholder="—" oninput="calculate()"/><div class="hint" id="feesHint"></div></div>
+      <div class="field"><label>All-Pool TVL (USD)</label><input type="number" id="allTVLEl" placeholder="—" oninput="calculate()"/><div class="hint" id="allTVLHint"></div></div>
+      <div class="field"><label>TEL Price (USD)</label><input type="number" id="telPriceEl" placeholder="—" step="0.000001" oninput="calculate()"/><div class="hint" id="telPriceHint"></div></div>
+      <div class="field"><label>Weekly TEL Rewards</label><input type="number" id="weeklyTELEl" placeholder="—" oninput="calculate()" readonly style="color:var(--green);border-color:rgba(0,229,160,.35);"/><div class="hint" id="weeklyTELHint">set per-pool from telx.network</div></div>
+    </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="fetchData()" disabled type="button">
+      <span id="refreshIcon">⟳</span> Fetch Live Data
+    </button>
+    <div class="status-bar" id="statusBar"></div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="card" id="posCard" style="display:none">
+    <div class="slbl">3 · Your Deposit</div>
+    <div class="asset-tabs" id="assetTabs"></div>
+    <div class="amount-row">
+      <div class="field"><label>Amount to Deposit</label><input type="number" id="amountEl" placeholder="0.00" min="0" step="any" oninput="calculate()"/></div>
+      <div class="curr-badge" id="currBadge">—</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card" id="apyCard" style="display:none">
+    <div class="slbl">4 · APY Breakdown</div>
+    <div id="apyRow" class="apy-row"></div>
+  </div>
+
+  <div id="rewardsWrap" style="display:none">
+    <div class="slbl">Weekly TEL Rewards</div>
+    <div class="rewards-bar" id="rewardsBar"></div>
+  </div>
+
+  <div class="card" id="earningsCard" style="display:none">
+    <div class="slbl">5 · Estimated Earnings</div>
+    <div class="earn-grid" id="earnGrid"></div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠ Data fetched via Claude AI web search. Fee APY = (24hr Fees ÷ TVL) × 365. TEL APY = (Weekly TEL × 52 × TEL price) ÷ All-Pool TVL. Impermanent loss not reflected. Not financial advice.
+  </div>
+</div>
+
+<script>
+const WK_DEFAULT = 200_000_000 / 52;
+
+// Token logos — inline SVG so they always render correctly with no external dependencies
+// Each token gets its own branded colored circle with the correct icon/letter
+const LOGOS = {};  // unused — all logos are SVG inline below
+
+const LOGO_COLORS = { TEL:'#00d4ff', USDC:'#2775CA', WBTC:'#F7931A', WETH:'#627EEA', ETH:'#627EEA', eMXN:'#006847' };
+
+// Inline SVG logos — pixel-perfect branded icons that always work
+const SVG_LOGOS = {
+  TEL: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${s/2}" cy="${s/2}" r="${s/2}" fill="#0A0E27"/>
+    <text x="${s/2}" y="${s*0.67}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${s*0.38}" font-weight="700" fill="#00d4ff">T</text>
+  </svg>`,
+  USDC: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${s/2}" cy="${s/2}" r="${s/2}" fill="#2775CA"/>
+    <text x="${s/2}" y="${s*0.67}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${s*0.34}" font-weight="700" fill="#fff">$</text>
+  </svg>`,
+  WBTC: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${s/2}" cy="${s/2}" r="${s/2}" fill="#F7931A"/>
+    <text x="${s/2}" y="${s*0.67}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${s*0.3}" font-weight="700" fill="#fff">₿</text>
+  </svg>`,
+  WETH: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${s/2}" cy="${s/2}" r="${s/2}" fill="#627EEA"/>
+    <polygon points="${s*0.5},${s*0.15} ${s*0.5},${s*0.55} ${s*0.72},${s*0.45}" fill="rgba(255,255,255,0.9)"/>
+    <polygon points="${s*0.5},${s*0.15} ${s*0.5},${s*0.55} ${s*0.28},${s*0.45}" fill="rgba(255,255,255,0.6)"/>
+    <polygon points="${s*0.5},${s*0.6} ${s*0.5},${s*0.85} ${s*0.72},${s*0.5}" fill="rgba(255,255,255,0.9)"/>
+    <polygon points="${s*0.5},${s*0.6} ${s*0.5},${s*0.85} ${s*0.28},${s*0.5}" fill="rgba(255,255,255,0.6)"/>
+  </svg>`,
+  ETH: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${s/2}" cy="${s/2}" r="${s/2}" fill="#627EEA"/>
+    <polygon points="${s*0.5},${s*0.15} ${s*0.5},${s*0.55} ${s*0.72},${s*0.45}" fill="rgba(255,255,255,0.9)"/>
+    <polygon points="${s*0.5},${s*0.15} ${s*0.5},${s*0.55} ${s*0.28},${s*0.45}" fill="rgba(255,255,255,0.6)"/>
+    <polygon points="${s*0.5},${s*0.6} ${s*0.5},${s*0.85} ${s*0.72},${s*0.5}" fill="rgba(255,255,255,0.9)"/>
+    <polygon points="${s*0.5},${s*0.6} ${s*0.5},${s*0.85} ${s*0.28},${s*0.5}" fill="rgba(255,255,255,0.6)"/>
+  </svg>`,
+  eMXN: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${s/2}" cy="${s/2}" r="${s/2}" fill="#006847"/>
+    <text x="${s/2}" y="${s*0.67}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${s*0.28}" font-weight="700" fill="#fff">MXN</text>
+  </svg>`,
+};
+
+// 6 confirmed active pools from telx.network/pools links provided
+const POOLS = {
+  p1: {
+    name: 'TEL 80% / USDC 20%',
+    tokens: ['TEL','USDC'], weights: [80,20],
+    protocol: 'Balancer V2', chain: 'Polygon',
+    weeklyTEL: 648148,
+    address: '0x3bd8a254163f8328efcc4f8c36da566753462433',
+    poolUrl: 'https://www.telx.network/pool/0x3bd8a254163f8328efcc4f8c36da566753462433',
+  },
+  p2: {
+    name: 'TEL 80% / WETH 20%',
+    tokens: ['TEL','WETH'], weights: [80,20],
+    protocol: 'Balancer V2', chain: 'Polygon',
+    weeklyTEL: 648148,
+    address: '0xca6efa5704f1ae445e0ee24d9c3ddde34c5be1c2',
+    poolUrl: 'https://www.telx.network/pool/0xca6efa5704f1ae445e0ee24d9c3ddde34c5be1c2',
+  },
+  p3: {
+    name: 'TEL 80% / WBTC 20%',
+    tokens: ['TEL','WBTC'], weights: [80,20],
+    protocol: 'Balancer V2', chain: 'Polygon',
+    weeklyTEL: 648148,
+    address: '0xe1e09ce7aac2740846d9b6d9d56f588c65314ecb',
+    poolUrl: 'https://www.telx.network/pool/0xe1e09ce7aac2740846d9b6d9d56f588c65314ecb',
+  },
+  p4: {
+    name: 'ETH / TEL',
+    tokens: ['ETH','TEL'], weights: [50,50],
+    protocol: 'Uniswap V4', chain: 'Base',
+    weeklyTEL: 648148,
+    address: '0x727b2741ac2b2df8bc9185e1de972661519fc07b156057eeed9b07c50e08829b',
+    poolUrl: 'https://www.telx.network/pool/0x727b2741ac2b2df8bc9185e1de972661519fc07b156057eeed9b07c50e08829b',
+  },
+  p5: {
+    name: 'USDC / eMXN',
+    tokens: ['USDC','eMXN'], weights: [50,50],
+    protocol: 'Uniswap V4', chain: 'Polygon',
+    weeklyTEL: 560000,
+    address: '0x29f94ec9b66df7fe4068e2d7e9bf0147b49afcdc7cd3283dff03088b8026169f',
+    poolUrl: 'https://www.telx.network/pool/0x29f94ec9b66df7fe4068e2d7e9bf0147b49afcdc7cd3283dff03088b8026169f',
+  },
+  p6: {
+    name: 'WETH / TEL',
+    tokens: ['WETH','TEL'], weights: [50,50],
+    protocol: 'Uniswap V4', chain: 'Polygon',
+    weeklyTEL: 648148,
+    address: '0x25412ca33f9a2069f0520708da3f70a7843374dd46dc1c7e62f6d5002f5f9fa7',
+    poolUrl: 'https://www.telx.network/pool/0x25412ca33f9a2069f0520708da3f70a7843374dd46dc1c7e62f6d5002f5f9fa7',
+  },
+};
+
+let selectedToken = null, currentPoolKey = null;
+const g = id => document.getElementById(id);
+const num = id => parseFloat(g(id).value) || 0;
+
+// ── Logo helpers — inline SVG, zero external dependencies ────
+function logoImg(sym, size = 20) {
+  const fn = SVG_LOGOS[sym];
+  if (!fn) {
+    // Generic fallback for unknown tokens
+    const bg = LOGO_COLORS[sym] || '#4a6278';
+    const txt = sym.slice(0,2).toUpperCase();
+    const fs = Math.max(size * 0.36, 7);
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;border-radius:50%;">
+      <circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="${bg}"/>
+      <text x="${size/2}" y="${size/2}" dominant-baseline="central" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fs}" font-weight="700" fill="#fff">${txt}</text>
+    </svg>`;
+  }
+  return `<span style="display:inline-flex;flex-shrink:0;width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;">${fn(size)}</span>`;
+}
+function buildStack(tokens, size = 22) {
+  return tokens.map((t, i) => {
+    const margin = i > 0 ? 'margin-left:-7px;' : '';
+    const fn = SVG_LOGOS[t];
+    const svg = fn ? fn(size) : (() => {
+      const bg = LOGO_COLORS[t] || '#4a6278';
+      const txt = t.slice(0,2).toUpperCase();
+      const fs = Math.max(size*0.36,7);
+      return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="${bg}"/><text x="${size/2}" y="${size/2}" dominant-baseline="central" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fs}" font-weight="700" fill="#fff">${txt}</text></svg>`;
+    })();
+    return `<span style="display:inline-flex;flex-shrink:0;${margin}border-radius:50%;overflow:hidden;border:2px solid var(--card2);">${svg}</span>`;
+  }).join('');
+}
+
+// ── Pool dropdown ─────────────────────────────────────────────
+function buildMenu() {
+  const menu = g('poolMenu');
+  menu.innerHTML = '';
+  Object.entries(POOLS).forEach(([key, p]) => {
+    const div = document.createElement('div');
+    div.className = 'pool-item';
+    div.dataset.key = key;
+    const weightStr = p.tokens.map((t,i) => `${t} ${p.weights[i]}%`).join(' / ');
+    div.innerHTML = `
+      <div class="tok-stack" style="display:flex;align-items:center;">${buildStack(p.tokens, 20)}</div>
+      <span class="pi-name">${weightStr}</span>
+      <span class="pi-chain">${p.protocol} · ${p.chain}</span>`;
+    div.onclick = () => pickPool(key);
+    menu.appendChild(div);
+  });
+}
+
+function toggleMenu() {
+  const menu = g('poolMenu');
+  const btn  = g('poolBtn');
+  const open = menu.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+document.addEventListener('click', e => {
+  if (!g('poolWrap').contains(e.target)) {
+    g('poolMenu').classList.remove('open');
+    g('poolBtn').classList.remove('open');
+  }
+});
+
+function pickPool(key) {
+  currentPoolKey = key;
+  const p = POOLS[key];
+
+  // Update button
+  const weightStr = p.tokens.map((t,i) => `${t} ${p.weights[i]}%`).join(' / ');
+  g('btnStack').innerHTML = buildStack(p.tokens, 22);
+  g('btnLabel').textContent = weightStr;
+  g('btnLabel').classList.remove('placeholder');
+
+  // Mark active item
+  g('poolMenu').querySelectorAll('.pool-item').forEach(el =>
+    el.classList.toggle('active', el.dataset.key === key));
+  g('poolMenu').classList.remove('open');
+  g('poolBtn').classList.remove('open');
+
+  g('protocolEl').value = `${p.protocol} · ${p.chain}`;
+  // Set the correct per-pool weekly TEL reward (from telx.network)
+  const wtelEl = g('weeklyTELEl');
+  wtelEl.value = p.weeklyTEL;
+  const wtelHint = g('weeklyTELHint');
+  wtelHint.textContent = `${p.weeklyTEL.toLocaleString()} TEL / 7 days · telx.network`;
+  wtelHint.className = 'hint ok';
+  g('refreshBtn').disabled = false;
+  g('posCard').style.display = 'block';
+
+  // Asset tabs
+  const tabs = g('assetTabs');
+  tabs.innerHTML = '';
+  p.tokens.forEach((tok, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'asset-tab' + (i === 0 ? ' active' : '');
+    btn.dataset.tok = tok;
+    btn.type = 'button';
+    btn.innerHTML = `${logoImg(tok, 18)} ${tok} <span class="w-badge">${p.weights[i]}%</span>`;
+    btn.onclick = () => pickToken(tok);
+    tabs.appendChild(btn);
+  });
+  pickToken(p.tokens[0]);
+  fetchData();
+}
+
+function pickToken(tok) {
+  selectedToken = tok;
+  g('currBadge').innerHTML = `${logoImg(tok, 18)} ${tok}`;
+  document.querySelectorAll('.asset-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tok === tok));
+  calculate();
+}
+
+// ── Field helpers ─────────────────────────────────────────────
+function setField(baseId, value, hintText, isLive) {
+  const inp  = g(baseId + 'El');
+  const hint = g(baseId + 'Hint');
+  if (value != null && value !== '') {
+    inp.value = value;
+    inp.classList.remove('loading');
+    inp.classList.toggle('live', !!isLive);
+  }
+  if (hint) {
+    hint.textContent = hintText || '';
+    hint.className = 'hint' + (isLive ? ' ok' : '');
+  }
+}
+function setStatus(state, msg) {
+  const el = g('statusBar');
+  el.className = 'status-bar show ' + state;
+  el.innerHTML = state === 'loading' ? `<span class="spin">⟳</span> ${msg}` : msg;
+}
+function pulseAll(on) {
+  ['tvlEl','volEl','feesEl','allTVLEl','telPriceEl'].forEach(id => {
+    const el = g(id);
+    if (on) { el.value = ''; el.classList.add('loading'); }
+    else el.classList.remove('loading');
+  });
+}
+
+// ── Fetch from Vercel serverless function ─────────────────────
+async function fetchData() {
+  if (!currentPoolKey) return;
+  const p = POOLS[currentPoolKey];
+  const btn = g('refreshBtn'), icon = g('refreshIcon');
+  btn.disabled = true;
+  icon.textContent = '⟳'; icon.className = 'spin';
+  pulseAll(true);
+  setStatus('loading', `Fetching live data for ${p.name}…`);
+
+  try {
+    const res = await fetch('/api/fetch-pool', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        poolName:    p.name,
+        poolAddress: p.address,
+        protocol:    p.protocol,
+        chain:       p.chain,
+      }),
+    });
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+
+    pulseAll(false);
+    const src = d.sources || 'web search';
+    const ts  = d.fetchedAt || new Date().toLocaleTimeString();
+
+    setField('tvl',      d.tvl,              d.tvl              ? `✓ ${src} · ${ts}` : 'not found — enter manually', !!d.tvl);
+    setField('vol',      d.vol24h,           d.vol24h           ? `✓ ${src} · ${ts}` : 'not found — enter manually', !!d.vol24h);
+    setField('fees',     d.fees24h,          d.fees24h          ? `✓ ${src} · ${ts}` : 'estimated from volume',      !!d.fees24h);
+    setField('allTVL',   d.totalAllPoolsTVL, d.totalAllPoolsTVL ? `✓ all pools · ${ts}` : 'not found',               !!d.totalAllPoolsTVL);
+    setField('telPrice', d.telPrice,         d.telPrice         ? `✓ TEL/USD · ${ts}` : 'not found',                 !!d.telPrice);
+    // Always use the pool's hardcoded weekly TEL — this is the authoritative source from telx.network
+    const poolWkTEL = POOLS[currentPoolKey].weeklyTEL;
+    g('weeklyTELEl').value = poolWkTEL;
+    const wh = g('weeklyTELHint');
+    wh.textContent = `${poolWkTEL.toLocaleString()} TEL / 7 days · telx.network`;
+    wh.className = 'hint ok';
+
+    // Re-assert pool-specific weekly TEL (never let fetch override it)
+    const pk = POOLS[currentPoolKey];
+    g('weeklyTELEl').value = pk.weeklyTEL;
+    g('weeklyTELHint').textContent = `${pk.weeklyTEL.toLocaleString()} TEL / 7 days · telx.network`;
+    g('weeklyTELHint').className = 'hint ok';
+    setStatus('ok', `✓ Data loaded · ${src}`);
+    calculate();
+  } catch(err) {
+    pulseAll(false);
+    // Re-assert pool-specific weekly TEL
+    const pkErr = POOLS[currentPoolKey];
+    g('weeklyTELEl').value = pkErr.weeklyTEL;
+    g('weeklyTELHint').textContent = `${pkErr.weeklyTEL.toLocaleString()} TEL / 7 days · telx.network`;
+    g('weeklyTELHint').className = 'hint ok';
+    setStatus('err', `⚠ ${err.message} — enter values manually above`);
+  }
+  btn.disabled = false;
+  icon.textContent = '⟳'; icon.className = '';
+}
+
+// ── Formatting ────────────────────────────────────────────────
+function fmt(n, d=2) {
+  if (!n || isNaN(n)) return '—';
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(d) + 'M';
+  if (n >= 1e3) return '$' + (n/1e3).toFixed(d) + 'K';
+  return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:d});
+}
+function fmtTEL(n) {
+  if (!n||isNaN(n)) return '';
+  if (n>=1e6) return '+'+(n/1e6).toFixed(2)+'M TEL';
+  if (n>=1e3) return '+'+(n/1e3).toFixed(2)+'K TEL';
+  return '+'+n.toFixed(2)+' TEL';
+}
+function usd(n){ return n>0?'≈ $'+(n>=1e3?(n/1e3).toFixed(2)+'K':n.toFixed(2)):''; }
+
+function tokUSD(amount, tok) {
+  if (!amount || !tok) return null;
+  const telP = num('telPriceEl');
+  if (tok === 'TEL') return telP ? amount * telP : null;
+  if (['USDC','USDT','DAI'].includes(tok)) return amount;
+  if (tok === 'eMXN') return amount * 0.052;
+  // WETH, ETH, WBTC — can't price without oracle, return null
+  return null;
+}
+
+// ── Calculate ─────────────────────────────────────────────────
+function calculate() {
+  const tvl      = num('tvlEl');
+  const vol24h   = num('volEl');
+  const fees24h  = num('feesEl') || (vol24h * 0.002);
+  const totalTVL = num('allTVLEl') || (tvl * 6);
+  const telPrice = num('telPriceEl');
+  const weeklyTEL = num('weeklyTELEl') || (currentPoolKey ? POOLS[currentPoolKey].weeklyTEL : WK_DEFAULT);
+  const amount   = num('amountEl');
+
+  if (!tvl) {
+    ['apyCard','rewardsWrap','earningsCard'].forEach(id => g(id).style.display = 'none');
+    return;
+  }
+
+  const feeAPY = (fees24h / tvl) * 365 * 100;
+  const telAPY = (telPrice && totalTVL > 0) ? (weeklyTEL * 52 * telPrice / totalTVL) * 100 : 0;
+  const totalAPY = feeAPY + telAPY;
+
+  g('apyCard').style.display = 'block';
+  g('apyRow').innerHTML = `
+    <div class="apy-main">
+      <div class="lbl">Total APY</div>
+      <div class="val">${totalAPY.toFixed(2)}%</div>
+      <div class="sub">fee APY + TEL issuance APY</div>
+    </div>
+    <div class="apy-split">
+      <div class="apy-piece fee"><span class="pl">Fee APY</span><span class="pv">${feeAPY.toFixed(2)}%</span></div>
+      <div class="apy-piece tel"><span class="pl">TEL APY</span><span class="pv">${telAPY > 0 ? telAPY.toFixed(2)+'%' : telPrice ? '0.00%' : 'Enter TEL price'}</span></div>
+    </div>`;
+
+  if (!amount || !selectedToken) {
+    g('rewardsWrap').style.display = 'none';
+    g('earningsCard').style.display = 'none';
+    return;
+  }
+
+  const depUSD = tokUSD(amount, selectedToken);
+  if (depUSD === null) {
+    // Show note for tokens we can't auto-price
+    g('rewardsWrap').style.display = 'none';
+    g('earningsCard').style.display = 'none';
+    // Add a small hint below apy card if not already there
+    const existing = document.getElementById('priceNote');
+    if (!existing) {
+      const note = document.createElement('div');
+      note.id = 'priceNote';
+      note.style.cssText = 'font-size:11px;font-family:"IBM Plex Mono",monospace;color:var(--muted);padding:10px 0;';
+      note.textContent = `ℹ To see earnings for ${selectedToken}, enter your deposit value in USDC equivalent instead, or select USDC tab.`;
+      g('apyCard').appendChild(note);
+    }
+    return;
+  }
+  const existing = document.getElementById('priceNote');
+  if (existing) existing.remove();
+
+  const globalShare = totalTVL > 0 ? depUSD / (totalTVL + depUSD) : 0;
+  const wkTEL       = weeklyTEL * globalShare;
+  const wkTELusd    = telPrice ? wkTEL * telPrice : 0;
+  const r = totalAPY / 100;
+
+  const periods = [
+    {label:'24 Hours', e:depUSD*(Math.pow(1+r,1/365)-1),  tel:wkTEL/7},
+    {label:'Weekly',   e:depUSD*(Math.pow(1+r,7/365)-1),  tel:wkTEL},
+    {label:'Monthly',  e:depUSD*(Math.pow(1+r,30/365)-1), tel:wkTEL*(30/7)},
+    {label:'Yearly',   e:depUSD*r,                         tel:wkTEL*52},
+  ];
+
+  g('rewardsWrap').style.display = 'block';
+  g('rewardsBar').innerHTML = `
+    <div class="rb-label">Weekly TEL</div>
+    <div><span class="rb-val">${fmtTEL(wkTEL).replace('+','')}</span><span class="rb-usd">${wkTELusd ? usd(wkTELusd) : ''}</span></div>
+    <div class="rb-div"></div>
+    <div class="rb-share">Pool share: <span>${(globalShare*100).toFixed(5)}%</span> &nbsp;·&nbsp; Deposit: <span>${fmt(depUSD)}</span></div>`;
+
+  g('earningsCard').style.display = 'block';
+  g('earnGrid').innerHTML = periods.map(({label, e, tel}) => {
+    const tusd = telPrice ? tel * telPrice : 0;
+    return `<div class="earn-cell">
+      <div class="earn-period">${label}</div>
+      <div class="earn-val">${e > 0 ? fmt(e) : '—'}</div>
+      <div class="earn-tel">${tel > 0 ? fmtTEL(tel) : ''}</div>
+      <div class="earn-usd">${tusd > 0 ? usd(tusd) + ' in TEL' : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// Init
+buildMenu();
+</script>
+</body>
+</html>
