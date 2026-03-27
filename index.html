@@ -459,9 +459,13 @@ async function fetchData() {
       }),
     });
 
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const d = await res.json();
-    if (d.error) throw new Error(d.error);
+    if (!res.ok || d.error) {
+      // Show the full error message from the server so it's easy to diagnose
+      const msg = d.error || `Server error: ${res.status}`;
+      const detail = d.detail ? ' — ' + d.detail.slice(0, 120) : '';
+      throw new Error(msg + detail);
+    }
 
     pulseFields(false);
     const src = d.sources || 'web search';
